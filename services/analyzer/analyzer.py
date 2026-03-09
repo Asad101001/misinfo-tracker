@@ -1,8 +1,8 @@
 """
 Analyzer Service — Misinfo Tracker
-Reads raw posts, extracts claims via OpenRouter (primary)
-or Gemini (fallback), checks against Google Fact Check API,
-writes enriched results to analyzed_posts.jsonl.
+Primary AI  : Groq (llama-3.3-70b-versatile) — 14,400 req/day free
+Fallback AI : Mistral (mistral-small-latest) — ~1B tokens/month free
+Fact Check  : Google Fact Check Tools API
 """
 
 import json
@@ -11,22 +11,23 @@ import requests
 import time
 from datetime import datetime, timezone
 from openai import OpenAI
-from google import genai
-from google.genai import types as genai_types
 from dotenv import load_dotenv
 
 load_dotenv("../../.env")
 
-# ── Clients ───────────────────────────────────────────────────────────────────
+# ── Clients — both OpenAI-compatible, zero extra SDK needed ──────────────────
 
-openrouter = OpenAI(
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+groq = OpenAI(
+    api_key=os.getenv("GROQ_API_KEY"),
+    base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
 )
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-4-maverick:free")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-001")
+mistral = OpenAI(
+    api_key=os.getenv("MISTRAL_API_KEY"),
+    base_url=os.getenv("MISTRAL_BASE_URL", "https://api.mistral.ai/v1"),
+)
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
 
 GOOGLE_FACTCHECK_KEY = os.getenv("GOOGLE_FACTCHECK_API_KEY")
 
@@ -34,42 +35,34 @@ INPUT_FILE  = "../../data/raw_posts.jsonl"
 OUTPUT_FILE = "../../data/analyzed_posts.jsonl"
 
 
-# ── AI Wrapper — OpenRouter primary, Gemini fallback ─────────────────────────
+# ── AI Wrapper ────────────────────────────────────────────────────────────────
 
 def ask_ai(prompt: str) -> str:
-    """
-    Send prompt to OpenRouter. If it fails (rate limit, quota, etc.)
-    automatically falls back to Gemini. Returns raw text response.
-    """
-    # Try OpenRouter first
+    """Groq primary, Mistral fallback. Both OpenAI-compatible."""
     try:
-        response = openrouter.chat.completions.create(
-            model=OPENROUTER_MODEL,
+        response = groq.chat.completions.create(
+            model=GROQ_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=400,
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"    ⚠ OpenRouter failed ({e}) — falling back to Gemini")
+        print(f"    ⚠ Groq failed ({e}) — falling back to Mistral")
 
-    # Fallback: Gemini
     try:
-        response = gemini_client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=400,
-            ),
+        response = mistral.chat.completions.create(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=400,
         )
-        return response.text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         raise RuntimeError(f"Both AI providers failed. Last error: {e}")
 
 
 def clean_json(raw: str) -> str:
-    """Strip markdown code fences models sometimes add."""
     return raw.replace("```json", "").replace("```", "").strip()
 
 
@@ -99,7 +92,6 @@ Return format example: ["Claim one here", "Claim two here"]"""
 # ── Fact Checking ─────────────────────────────────────────────────────────────
 
 def check_claim(claim: str) -> dict:
-    """Query Google Fact Check Tools API. Returns best match or empty dict."""
     if not GOOGLE_FACTCHECK_KEY or GOOGLE_FACTCHECK_KEY == "your_factcheck_key_here":
         return {}
     try:
@@ -148,7 +140,6 @@ Respond ONLY with a JSON object — no extra text, no markdown fences:
     try:
         raw = ask_ai(prompt)
         result = json.loads(clean_json(raw))
-        # Validate expected keys exist
         for key in ("rating", "confidence", "explanation", "misinformation_risk"):
             if key not in result:
                 raise ValueError(f"Missing key: {key}")
@@ -178,7 +169,7 @@ def load_analyzed_ids(filepath: str) -> set:
     return seen
 
 
-def run_analysis(limit: int = 5):
+def run_analysis(limit: int = 10):
     if not os.path.exists(INPUT_FILE):
         print("❌ No raw posts found. Run collector.py first.")
         return
@@ -218,7 +209,7 @@ def run_analysis(limit: int = 5):
                     "fact_check": fact_check,
                     "veracity":   veracity,
                 })
-                time.sleep(0.5)
+                time.sleep(0.3)
 
             risk_rank = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
             enriched = {
@@ -236,10 +227,10 @@ def run_analysis(limit: int = 5):
             out.write(json.dumps(enriched) + "\n")
             analyzed_ids.add(post["id"])
             print(f"  ✓ Saved | Risk: {enriched['highest_risk']}\n")
-            time.sleep(1)
+            time.sleep(0.5)
 
     print(f"✅ Analysis complete — {min(limit, len(unanalyzed))} posts processed")
 
 
 if __name__ == "__main__":
-    run_analysis(limit=5)
+    run_analysis(limit=10)
