@@ -31,8 +31,8 @@ MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
 
 GOOGLE_FACTCHECK_KEY = os.getenv("GOOGLE_FACTCHECK_API_KEY")
 
-INPUT_FILE  = "../../data/raw_posts.jsonl"
-OUTPUT_FILE = "../../data/analyzed_posts.jsonl"
+INPUT_FILE = os.getenv("INPUT_FILE", "../../data/raw_posts.jsonl")
+OUTPUT_FILE = os.getenv("OUTPUT_FILE", "../../data/analyzed_posts.jsonl")
 
 
 # ── AI Wrapper ────────────────────────────────────────────────────────────────

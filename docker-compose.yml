@@ -1,0 +1,99 @@
+services:
+
+  # ── Databases ─────────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: misinfo-postgres
+    environment:
+      POSTGRES_USER: misinfo
+      POSTGRES_PASSWORD: misinfo123
+      POSTGRES_DB: misinfo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U misinfo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [misinfo-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: misinfo-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks: [misinfo-net]
+
+  # ── Application services ───────────────────────────────────────────────────
+
+  collector:
+    build: ./services/collector
+    container_name: misinfo-collector
+    env_file: .env
+    environment:
+      # Override paths to use shared volume
+      OUTPUT_FILE: /data/raw_posts.jsonl
+    volumes:
+      - shared_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [misinfo-net]
+    restart: unless-stopped
+
+  analyzer:
+    build: ./services/analyzer
+    container_name: misinfo-analyzer
+    env_file: .env
+    environment:
+      INPUT_FILE:  /data/raw_posts.jsonl
+      OUTPUT_FILE: /data/analyzed_posts.jsonl
+    volumes:
+      - shared_data:/data
+    depends_on:
+      collector:
+        condition: service_started
+    networks: [misinfo-net]
+    restart: unless-stopped
+
+  backend:
+    build: ./services/backend
+    container_name: misinfo-backend
+    env_file: .env
+    environment:
+      POSTGRES_URL: postgresql+asyncpg://misinfo:misinfo123@postgres:5432/misinfo
+      REDIS_URL: redis://redis:6379
+      ANALYZED_FILE: /data/analyzed_posts.jsonl
+    volumes:
+      - shared_data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [misinfo-net]
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: misinfo-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks: [misinfo-net]
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  shared_data:
+
+networks:
+  misinfo-net:
+    driver: bridge

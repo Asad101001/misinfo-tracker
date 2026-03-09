@@ -28,7 +28,7 @@ HEADERS = {
     "User-Agent": "misinfo-tracker/1.0 (research; muhammadasadk42@gmail.com)"
 }
 
-OUTPUT_FILE = "../../data/raw_posts.jsonl"
+OUTPUT_FILE = os.getenv("OUTPUT_FILE", "../../data/raw_posts.jsonl")
 
 
 def make_id(url: str, title: str) -> str:

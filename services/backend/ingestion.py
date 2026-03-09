@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv("../../.env")
 
-ANALYZED_FILE = "../../data/analyzed_posts.jsonl"
+ANALYZED_FILE = os.getenv("ANALYZED_FILE", "../../data/analyzed_posts.jsonl")
 
 
 async def create_tables():
