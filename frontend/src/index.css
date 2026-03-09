@@ -1,52 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Special+Elite&family=Bebas+Neue&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #0a0e1a;
-  --surface: #111827;
-  --border:  #1f2937;
-  --accent:  #3b82f6;
-  --danger:  #ef4444;
-  --warning: #f59e0b;
-  --success: #10b981;
-  --text:    #f9fafb;
-  --muted:   #6b7280;
-  --radius:  8px;
+  --ink:       #0d0d0b;
+  --paper:     #111009;
+  --aged:      #1a1812;
+  --rule:      #2a2820;
+  --redline:   #c0392b;
+  --redlight:  #e74c3c;
+  --amber:     #d4a017;
+  --green:     #2e7d52;
+  --muted:     #6b6655;
+  --faded:     #3d3b30;
+  --text:      #e8e4d0;
+  --headline:  #f5f0dc;
+  --stamp:     #8b1a1a;
+  --radius:    2px;
+  --mono:      'Courier Prime', 'Courier New', monospace;
+  --display:   'Special Elite', cursive;
+  --condensed: 'Bebas Neue', sans-serif;
 }
+
+html { font-size: 14px; }
 
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--text);
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: var(--mono);
+  line-height: 1.6;
+  /* aged paper noise texture */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 28px,
+      rgba(255,255,255,0.012) 28px,
+      rgba(255,255,255,0.012) 29px
+    ),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--ink); }
+::-webkit-scrollbar-thumb { background: var(--faded); }
 
+/* ── Card / panel ── */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--aged);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
   padding: 20px;
+  position: relative;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--rule) 0px,
+    var(--rule) 4px,
+    transparent 4px,
+    transparent 8px
+  );
 }
 
+/* ── Risk badges ── */
 .badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: 1px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-.badge-high         { background: #450a0a; color: var(--danger); }
-.badge-medium       { background: #451a03; color: var(--warning); }
-.badge-low          { background: #052e16; color: var(--success); }
-.badge-true         { background: #052e16; color: var(--success); }
-.badge-mostly_true  { background: #052e16; color: var(--success); }
-.badge-mixed        { background: #451a03; color: var(--warning); }
-.badge-mostly_false { background: #450a0a; color: var(--danger); }
-.badge-false        { background: #450a0a; color: var(--danger); }
-.badge-unverifiable { background: #1f2937; color: var(--muted); }
+
+.badge-high         { background: var(--stamp);  color: #ffb3b3; border: 1px solid #8b1a1a; }
+.badge-medium       { background: #3d2e00; color: #ffd080; border: 1px solid #6b5000; }
+.badge-low          { background: #0a2e1a; color: #7dffb3; border: 1px solid #1a5c38; }
+.badge-true         { background: #0a2e1a; color: #7dffb3; border: 1px solid #1a5c38; }
+.badge-mostly_true  { background: #0a2e1a; color: #7dffb3; border: 1px solid #1a5c38; }
+.badge-mixed        { background: #3d2e00; color: #ffd080; border: 1px solid #6b5000; }
+.badge-mostly_false { background: var(--stamp);  color: #ffb3b3; border: 1px solid #8b1a1a; }
+.badge-false        { background: var(--stamp);  color: #ffb3b3; border: 1px solid #8b1a1a; }
+.badge-unverifiable { background: var(--faded);  color: var(--muted); border: 1px solid #3d3b30; }
+
+/* ── Redacted label ── */
+.redacted {
+  background: var(--faded);
+  color: transparent;
+  border-radius: 1px;
+  padding: 0 4px;
+  user-select: none;
+  font-size: 11px;
+}
+
+/* ── Ticker animation ── */
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── Blink ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Scan line ── */
+@keyframes scanline {
+  0%   { top: -5%; }
+  100% { top: 105%; }
+}
+
+/* ── Stamp pulse ── */
+@keyframes stamppulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.01); }
+}
