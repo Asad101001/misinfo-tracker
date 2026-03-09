@@ -1,0 +1,35 @@
+# Development-only compose file
+# Spins up just the databases locally
+# The full production compose (Day 5) will include all services
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: misinfo-postgres
+    environment:
+      POSTGRES_USER: misinfo
+      POSTGRES_PASSWORD: misinfo123
+      POSTGRES_DB: misinfo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U misinfo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: misinfo-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
